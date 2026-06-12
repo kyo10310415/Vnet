@@ -1,0 +1,363 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================
+// ユーザー・権限
+// ============================
+
+enum UserRole {
+  admin
+  director
+  reviewer
+  viewer
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole @default(viewer)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projects      Project[]
+  approvals     Approval[]
+  rejections    Rejection[]
+  activityLogs  ActivityLog[]
+  checklists    ChecklistItem[] @relation("CheckedBy")
+}
+
+// ============================
+// クライアント
+// ============================
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+}
+
+// ============================
+// タレント
+// ============================
+
+model Talent {
+  id        String   @id @default(cuid())
+  name      String
+  channel   String?
+  twitterId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+}
+
+// ============================
+// 案件
+// ============================
+
+enum ProjectStatus {
+  draft           // 下書き
+  active          // 進行中
+  streaming       // 配信中
+  post_production // 配信後作業
+  reporting       // レポート作成中
+  delivered       // 納品済み
+  closed          // 完了
+}
+
+model Project {
+  id                String        @id @default(cuid())
+  name              String        // 案件名
+  clientId          String
+  client            Client        @relation(fields: [clientId], references: [id])
+  talentId          String?
+  talent            Talent?       @relation(fields: [talentId], references: [id])
+  directorId        String?
+  director          User?         @relation(fields: [directorId], references: [id])
+
+  // 商材情報
+  productName       String?       // 商材名
+  productOverview   String?       // 商材概要
+  purpose           String?       // 実施目的
+  targetAudience    String?       // 想定ターゲット
+  appealPoints      String?       // 訴求ポイント
+  requiredAppeals   String?       // 必須訴求
+  ngItems           String?       // NG事項
+  requiredNotations String?       // 必須表記
+  usedUrl           String?       // 使用URL
+
+  // スケジュール
+  streamDate        DateTime?     // 配信予定日
+  postDate          DateTime?     // 投稿予定日
+
+  // 状態
+  status            ProjectStatus @default(draft)
+  notes             String?       // 備考
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  documents         GeneratedDocument[]
+  checklists        Checklist[]
+  metrics           Metric[]
+  reports           Report[]
+  activityLogs      ActivityLog[]
+}
+
+// ============================
+// AI生成ドキュメント
+// ============================
+
+enum DocumentType {
+  stream_structure    // 配信構成案
+  stream_script       // 配信台本案
+  ng_list             // NGリスト案
+  talent_briefing     // タレント向け説明文案
+  x_announcement      // X告知投稿文案
+  report_body         // レポート本文案
+  next_proposal       // 次回施策提案案
+}
+
+enum DocumentStatus {
+  draft           // 下書き（AI生成直後）
+  pending_review  // 承認待ち
+  approved        // 承認済み
+  rejected        // 差し戻し
+}
+
+enum GeneratorType {
+  ai
+  human
+}
+
+model GeneratedDocument {
+  id              String         @id @default(cuid())
+  projectId       String
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type            DocumentType
+  content         String         // 本文
+  generatorType   GeneratorType  @default(ai)
+  version         Int            @default(1)
+  status          DocumentStatus @default(draft)
+
+  // 承認情報
+  approvedBy      String?
+  approvedAt      DateTime?
+  approvalComment String?
+
+  // 差し戻し情報
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  revisionRequest String?
+
+  // 元バージョン（改訂時）
+  parentId        String?
+  parent          GeneratedDocument? @relation("DocumentVersions", fields: [parentId], references: [id])
+  children        GeneratedDocument[] @relation("DocumentVersions")
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  approvals       Approval[]
+  rejections      Rejection[]
+}
+
+// ============================
+// 承認
+// ============================
+
+model Approval {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    GeneratedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  approverId  String
+  approver    User     @relation(fields: [approverId], references: [id])
+  comment     String?
+  version     Int
+  createdAt   DateTime @default(now())
+
+  // レポート承認の場合
+  reportId    String?
+  report      Report?  @relation(fields: [reportId], references: [id])
+}
+
+// ============================
+// 差し戻し
+// ============================
+
+model Rejection {
+  id              String   @id @default(cuid())
+  documentId      String
+  document        GeneratedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  rejectorId      String
+  rejector        User     @relation(fields: [rejectorId], references: [id])
+  reason          String
+  revisionRequest String?
+  version         Int
+  createdAt       DateTime @default(now())
+}
+
+// ============================
+// チェックリスト
+// ============================
+
+enum ChecklistCategory {
+  pre_stream    // 配信前
+  during_stream // 配信中
+  post_stream   // 配信後
+  pre_report    // レポート前
+}
+
+enum ChecklistItemStatus {
+  unchecked
+  checked
+  needs_review
+}
+
+model Checklist {
+  id        String            @id @default(cuid())
+  projectId String
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category  ChecklistCategory
+  title     String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  items     ChecklistItem[]
+}
+
+model ChecklistItem {
+  id          String              @id @default(cuid())
+  checklistId String
+  checklist   Checklist           @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  label       String              // チェック項目名
+  status      ChecklistItemStatus @default(unchecked)
+  note        String?
+  checkedById String?
+  checkedBy   User?               @relation("CheckedBy", fields: [checkedById], references: [id])
+  checkedAt   DateTime?
+  order       Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+// ============================
+// 数値
+// ============================
+
+model Metric {
+  id                    String   @id @default(cuid())
+  projectId             String   @unique
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // YouTube
+  youtubeUrl            String?
+  youtubeViews          Int?     // 再生数
+  peakConcurrent        Int?     // 最大同時接続数
+  avgViewDuration       Float?   // 平均視聴維持率(%)
+  likes                 Int?     // 高評価数
+  comments              Int?     // コメント数
+
+  // X (Twitter)
+  xPostUrl              String?
+  xImpressions          Int?     // インプレッション
+  xLikes                Int?     // いいね数
+  xReposts              Int?     // リポスト数
+  clicks                Int?     // クリック数
+
+  // 成果
+  cv                    Int?     // CV数
+  cvr                   Float?   // CVR(%)
+  cpa                   Float?   // CPA(円)
+
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// ============================
+// レポート
+// ============================
+
+enum ReportStatus {
+  draft           // 下書き
+  pending_review  // 承認待ち（納品不可）
+  approved        // 承認済み（納品可能）
+  rejected        // 差し戻し
+  delivered       // 納品済み
+}
+
+model Report {
+  id              String       @id @default(cuid())
+  projectId       String       @unique
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // レポート構成
+  overview        String?      // 案件概要
+  implementation  String?      // 実施内容
+  urls            String?      // 投稿・配信URL
+  metricsSummary  String?      // 数値サマリー
+  achievements    String?      // 成果
+  goodPoints      String?      // 良かった点
+  issues          String?      // 課題
+  improvements    String?      // 次回改善提案
+  clientComment   String?      // クライアント向けコメント
+
+  status          ReportStatus @default(draft)
+
+  // 承認情報
+  approvedBy      String?
+  approvedAt      DateTime?
+  approvalComment String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  approvals       Approval[]
+}
+
+// ============================
+// アクティビティログ
+// ============================
+
+enum ActivityType {
+  project_created
+  project_updated
+  document_generated
+  document_approved
+  document_rejected
+  checklist_updated
+  metric_registered
+  report_generated
+  report_approved
+  report_delivered
+}
+
+model ActivityLog {
+  id          String       @id @default(cuid())
+  projectId   String?
+  project     Project?     @relation(fields: [projectId], references: [id])
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id])
+  type        ActivityType
+  description String
+  metadata    Json?        // 追加情報（バージョン番号など）
+  createdAt   DateTime     @default(now())
+}
