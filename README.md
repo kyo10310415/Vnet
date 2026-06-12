@@ -141,35 +141,125 @@ git push -u origin main
 
 ---
 
-## ☁️ Renderデプロイ手順
+## ☁️ Renderデプロイ手順（Web Service）
 
-### 方法1：render.yaml（推奨）
+Renderへのデプロイは **PostgreSQL → Web Service** の順で作成します。
 
-1. GitHubリポジトリにpush
-2. [Render Dashboard](https://dashboard.render.com) → **New > Blueprint**
-3. リポジトリを選択して `render.yaml` を自動認識
-4. **NEXTAUTH_URL** に発行されたRender URLを設定
-5. デプロイ実行
+---
 
-### 方法2：手動設定
+### STEP 1：PostgreSQLデータベースを作成する
 
-1. Render Dashboard → **New > Web Service**
-2. GitHubリポジトリを接続
-3. 以下を設定：
-   - **Build Command**: `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`
-   - **Start Command**: `npm run start`
-4. 環境変数を設定：
-   - `DATABASE_URL`: Render PostgreSQLの接続URL
-   - `NEXTAUTH_SECRET`: `openssl rand -base64 32` で生成
-   - `NEXTAUTH_URL`: RenderのURL（例: `https://vtuber-ops.onrender.com`）
-   - `NODE_ENV`: `production`
+1. [Render Dashboard](https://dashboard.render.com) を開く
+2. 右上の **New +** → **PostgreSQL** をクリック
+3. 以下を入力：
 
-### Render PostgreSQL接続手順
+   | 項目 | 値 |
+   |------|-----|
+   | Name | `vtuber-ops-db`（任意） |
+   | Database | `vtuber_ops` |
+   | User | 任意 |
+   | Region | Singapore（またはお好みの地域） |
+   | Plan | Free |
 
-1. Render Dashboard → **New > PostgreSQL**
-2. データベース名: `vtuber-ops-db`
-3. **Internal Database URL** をコピー
-4. Web Serviceの環境変数 `DATABASE_URL` に貼り付け
+4. **Create Database** をクリック
+5. 作成完了後、**Connections** セクションの **Internal Database URL** をコピーしておく
+   ```
+   postgresql://vtuber_ops_user:xxxx@dpg-xxxx-a/vtuber_ops
+   ```
+   > ⚠️ **Internal URL**（`dpg-` から始まるもの）を使うこと。External URLは課金対象になる場合あり。
+
+---
+
+### STEP 2：Web Serviceを作成する
+
+1. Render Dashboard → **New +** → **Web Service** をクリック
+2. **Connect a repository** でGitHubのリポジトリを選択
+3. 以下の設定を入力：
+
+   | 項目 | 値 |
+   |------|-----|
+   | Name | `vtuber-ops`（任意） |
+   | Region | STEP 1と同じ地域 |
+   | Branch | `main` |
+   | Runtime | **Node** |
+   | Build Command | 下記参照 |
+   | Start Command | 下記参照 |
+   | Plan | Free |
+
+   **Build Command**（コピーして貼り付け）：
+   ```
+   npm install && npx prisma generate && npx prisma migrate deploy && npm run build
+   ```
+
+   **Start Command**（コピーして貼り付け）：
+   ```
+   npm run start
+   ```
+
+---
+
+### STEP 3：環境変数を設定する
+
+Web Service作成画面の **Environment Variables** セクションに以下を追加：
+
+| Key | Value |
+|-----|-------|
+| `DATABASE_URL` | STEP 1でコピーした **Internal Database URL** |
+| `NEXTAUTH_SECRET` | ランダム文字列（下記コマンドで生成） |
+| `NEXTAUTH_URL` | デプロイ後のURL（例：`https://vtuber-ops.onrender.com`）※後から更新可 |
+| `NODE_ENV` | `production` |
+
+`NEXTAUTH_SECRET` の生成方法（ローカルで実行）：
+```bash
+openssl rand -base64 32
+# 出力例: K7x9mZ2pQ8vLnR4sT1uW6yB3cA5eH0jD...
+```
+
+---
+
+### STEP 4：デプロイ実行
+
+1. **Create Web Service** をクリック
+2. 自動的にビルドが開始される（初回は5〜10分かかる）
+3. ログに `✓ Ready` が表示されたら完了
+4. 発行されたURL（例: `https://vtuber-ops.onrender.com`）にアクセスして確認
+
+---
+
+### STEP 5：NEXTAUTH_URLを本番URLに更新する
+
+デプロイ後、実際のURLが確定したら：
+
+1. Web Service → **Environment** タブ
+2. `NEXTAUTH_URL` の値を実際のURLに更新
+   ```
+   https://vtuber-ops.onrender.com
+   ```
+3. **Save Changes** → 自動再デプロイ
+
+---
+
+### よくあるエラーと対処法
+
+| エラー | 原因 | 対処 |
+|--------|------|------|
+| `prisma generate` 失敗 | `postinstall` スクリプトの実行エラー | Build Commandに `npx prisma generate` を含めていることを確認 |
+| `P3005` マイグレーションエラー | DBとスキーマの不一致 | `npx prisma migrate deploy` がBuild Commandに含まれているか確認 |
+| `ECONNREFUSED` DB接続失敗 | DATABASE_URLが未設定または間違い | Internal URLを使っているか確認（ExternalではなくInternal） |
+| 502 Bad Gateway | アプリ起動失敗 | Render Dashboardのログを確認 |
+| Freeプランのスリープ | 15分無操作でスリープ | 初回アクセスに30〜60秒かかる（仕様） |
+
+---
+
+### シードデータを本番DBに投入する（任意）
+
+Render Shellから実行：
+
+1. Web Service → **Shell** タブ
+2. 以下を実行：
+   ```bash
+   npm run db:seed
+   ```
 
 ---
 

@@ -1,3 +1,8 @@
+# render.yaml
+# ※ このファイルはBlueprint用です。
+# 通常はRender DashboardからWeb ServiceとPostgreSQLを手動で作成してください。
+# 手順はREADMEの「Renderデプロイ手順（Web Service）」を参照。
+
 services:
   - type: web
     name: vtuber-ops
@@ -13,7 +18,7 @@ services:
       - key: NEXTAUTH_SECRET
         generateValue: true
       - key: NEXTAUTH_URL
-        sync: false
+        sync: false   # デプロイ後に手動で設定
       - key: NODE_ENV
         value: production
 
