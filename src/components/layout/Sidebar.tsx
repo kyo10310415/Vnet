@@ -21,7 +21,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <span className="text-2xl">🎭</span>
           <div>
-            <h1 className="text-sm font-bold text-gray-900">VTuber案件管理</h1>
+            <h1 className="text-sm font-bold text-gray-900">ぶいねっと管理</h1>
             <p className="text-xs text-gray-500">半自動運用システム</p>
           </div>
         </div>

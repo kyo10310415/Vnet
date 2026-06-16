@@ -6,8 +6,8 @@ import { Sidebar } from '@/components/layout/Sidebar'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'VTuber案件管理',
-  description: 'VTuber案件の運用を半自動化するシステム',
+  title: 'ぶいねっと管理',
+  description: 'VTuber案件の運用を半自動化するシステム「ぶいねっと管理」',
 }
 
 export default function RootLayout({

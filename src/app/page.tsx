@@ -70,7 +70,7 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">🏠 ダッシュボード</h1>
-          <p className="text-sm text-gray-500 mt-1">VTuber案件管理システム</p>
+          <p className="text-sm text-gray-500 mt-1">ぶいねっと管理</p>
         </div>
         <Link
           href="/projects/new"
