@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { formatDate } from '@/lib/constants'
+import { formatSchedules } from '@/lib/constants'
+import { isProjectStatus } from '@/lib/project-input'
 
 const STATUS_LABEL: Record<string, string> = {
   draft: '下書き',
@@ -30,13 +31,18 @@ export default async function ProjectsPage({
   searchParams: Promise<{ status?: string }>
 }) {
   const { status } = await searchParams
+  const projectStatus = isProjectStatus(status) ? status : undefined
 
   const projects = await prisma.project.findMany({
-    where: status ? { status: status as any } : {},
+    where: projectStatus ? { status: projectStatus } : {},
     include: {
       client: true,
       talent: true,
       director: { select: { name: true } },
+      schedules: {
+        where: { type: 'stream' },
+        orderBy: [{ startDate: 'asc' }, { order: 'asc' }],
+      },
       _count: { select: { documents: true } },
     },
     orderBy: { updatedAt: 'desc' },
@@ -106,7 +112,7 @@ export default async function ProjectsPage({
                   </td>
                   <td className="px-4 py-3 text-gray-600">{project.client.name}</td>
                   <td className="px-4 py-3 text-gray-600">{project.talent?.name || '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{formatDate(project.streamDate)}</td>
+                  <td className="px-4 py-3 text-gray-600">{formatSchedules(project.schedules)}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLOR[project.status]}`}>
                       {STATUS_LABEL[project.status]}

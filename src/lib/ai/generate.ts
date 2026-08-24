@@ -15,8 +15,7 @@ export interface GenerateInput {
   productOverview?: string
   purpose?: string
   targetAudience?: string
-  appealPoints?: string
-  requiredAppeals?: string
+  plans?: string[]
   ngItems?: string
   requiredNotations?: string
   usedUrl?: string
@@ -50,7 +49,10 @@ export async function generateDocument(
 }
 
 function generateMockContent(type: DocumentType, input: GenerateInput): string {
-  const { projectName, clientName, productName, purpose, targetAudience, appealPoints, requiredAppeals, ngItems, requiredNotations, usedUrl, talentName } = input
+  const { projectName, clientName, productName, purpose, targetAudience, plans, ngItems, requiredNotations, usedUrl, talentName } = input
+  const planList = plans?.length
+    ? plans.map((plan, index) => `${index + 1}. ${plan}`).join('\n')
+    : '（企画内容が設定されていません）'
 
   switch (type) {
     case 'stream_structure':
@@ -72,7 +74,9 @@ function generateMockContent(type: DocumentType, input: GenerateInput): string {
 ### 商品紹介・メインコンテンツ（30分）
 - ${productName || '商材'}の紹介
 - 実際に使用・体験するコーナー
-- 訴求ポイントの自然な組み込み：${appealPoints || '（未設定）'}
+
+#### 企画内容
+${planList}
 
 ### Q&Aコーナー（15分）
 - 視聴者からの質問回答
@@ -80,7 +84,6 @@ function generateMockContent(type: DocumentType, input: GenerateInput): string {
   - 使用URL：${usedUrl || '（未設定）'}
 
 ### エンディング（5分）
-- 必須訴求まとめ：${requiredAppeals || '（未設定）'}
 - 必須表記の読み上げ
 - クロージング
 
@@ -117,12 +120,8 @@ ${productName || '今日紹介する商品'}について、みんなに紹介で
 「まず${productName || 'この商品'}なんだけど、知ってる人いる？」
 （チャット確認）
 
-【訴求ポイント】
-${appealPoints ? `「${appealPoints}」` : '（訴求ポイントを設定してください）'}
-
-【必須訴求】
-※以下は必ず読み上げること：
-${requiredAppeals || '（必須訴求を設定してください）'}
+【企画内容】
+${planList}
 
 【URL案内】
 「気になる人は概要欄のリンクもチェックしてみてね！
@@ -196,12 +195,9 @@ ${targetAudience || '（未設定）'}
 
 ---
 
-## 配信時の訴求ポイント
+## 企画内容
 
-${appealPoints || '（訴求ポイントが設定されていません）'}
-
-### 必ず伝えていただきたい内容
-${requiredAppeals || '（必須訴求が設定されていません）'}
+${planList}
 
 ---
 

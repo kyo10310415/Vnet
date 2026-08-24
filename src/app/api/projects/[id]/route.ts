@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
+import { isProjectStatus, parseProjectPlans, parseProjectSchedules, ProjectInputError } from '@/lib/project-input'
 
 export async function GET(
   _request: NextRequest,
@@ -14,6 +15,8 @@ export async function GET(
         client: true,
         talent: true,
         director: { select: { id: true, name: true, role: true } },
+        schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
+        plans: { orderBy: { order: 'asc' } },
         documents: {
           orderBy: [{ type: 'asc' }, { version: 'desc' }],
         },
@@ -52,9 +55,19 @@ export async function PUT(
     const {
       name, clientId, clientName, talentId, talentName,
       directorId, productName, productOverview, purpose,
-      targetAudience, appealPoints, requiredAppeals, ngItems,
-      requiredNotations, usedUrl, streamDate, postDate, notes, status,
+      targetAudience, ngItems, requiredNotations, usedUrl,
+      schedules, plans, notes, status,
     } = body
+
+    if (typeof name !== 'string' || !name.trim() || (!clientId && !clientName?.trim())) {
+      return NextResponse.json({ error: '案件名とクライアント名は必須です' }, { status: 400 })
+    }
+
+    const scheduleData = parseProjectSchedules(schedules)
+    const planData = parseProjectPlans(plans)
+    if (!isProjectStatus(status)) {
+      throw new ProjectInputError('ステータスが正しくありません')
+    }
 
     let finalClientId = clientId
     if (!finalClientId && clientName) {
@@ -73,7 +86,7 @@ export async function PUT(
     const project = await prisma.project.update({
       where: { id },
       data: {
-        name,
+        name: name.trim(),
         clientId: finalClientId,
         talentId: finalTalentId,
         directorId: directorId || null,
@@ -81,17 +94,21 @@ export async function PUT(
         productOverview,
         purpose,
         targetAudience,
-        appealPoints,
-        requiredAppeals,
         ngItems,
         requiredNotations,
         usedUrl,
-        streamDate: streamDate ? new Date(streamDate) : null,
-        postDate: postDate ? new Date(postDate) : null,
+        schedules: {
+          deleteMany: {},
+          create: scheduleData,
+        },
+        plans: {
+          deleteMany: {},
+          create: planData,
+        },
         notes,
         status,
       },
-      include: { client: true, talent: true },
+      include: { client: true, talent: true, schedules: true, plans: true },
     })
 
     await logActivity({
@@ -103,6 +120,9 @@ export async function PUT(
     return NextResponse.json(project)
   } catch (error) {
     console.error(error)
+    if (error instanceof ProjectInputError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
   }
 }

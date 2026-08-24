@@ -12,7 +12,12 @@ export default async function EditProjectPage({
   const { id } = await params
   const project = await prisma.project.findUnique({
     where: { id },
-    include: { client: true, talent: true },
+    include: {
+      client: true,
+      talent: true,
+      schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
+      plans: { orderBy: { order: 'asc' } },
+    },
   })
 
   if (!project) notFound()

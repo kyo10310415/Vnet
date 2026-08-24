@@ -61,6 +61,24 @@ export function formatDate(date: Date | string | null): string {
   })
 }
 
+type ScheduleDate = {
+  startDate: Date | string
+  endDate?: Date | string | null
+}
+
+export function formatScheduleEntry(schedule: ScheduleDate): string {
+  const start = formatDate(schedule.startDate)
+  if (!schedule.endDate) return start
+
+  const end = formatDate(schedule.endDate)
+  return start === end ? start : `${start}〜${end}`
+}
+
+export function formatSchedules(schedules: ScheduleDate[]): string {
+  if (schedules.length === 0) return '—'
+  return schedules.map(formatScheduleEntry).join('、')
+}
+
 export function formatDateTime(date: Date | string | null): string {
   if (!date) return '—'
   const d = new Date(date)

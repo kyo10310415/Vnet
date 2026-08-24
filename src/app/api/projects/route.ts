@@ -1,22 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
+import { isProjectStatus, parseProjectPlans, parseProjectSchedules, ProjectInputError } from '@/lib/project-input'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const status = searchParams.get('status')
   const clientId = searchParams.get('clientId')
+  const projectStatus = isProjectStatus(status) ? status : undefined
 
   try {
     const projects = await prisma.project.findMany({
       where: {
-        ...(status ? { status: status as any } : {}),
+        ...(projectStatus ? { status: projectStatus } : {}),
         ...(clientId ? { clientId } : {}),
       },
       include: {
         client: true,
         talent: true,
         director: { select: { id: true, name: true } },
+        schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
+        plans: { orderBy: { order: 'asc' } },
         _count: {
           select: {
             documents: true,
@@ -39,9 +43,19 @@ export async function POST(request: NextRequest) {
     const {
       name, clientId, clientName, talentId, talentName,
       directorId, productName, productOverview, purpose,
-      targetAudience, appealPoints, requiredAppeals, ngItems,
-      requiredNotations, usedUrl, streamDate, postDate, notes, status,
+      targetAudience, ngItems, requiredNotations, usedUrl,
+      schedules, plans, notes, status,
     } = body
+
+    if (typeof name !== 'string' || !name.trim() || (!clientId && !clientName?.trim())) {
+      return NextResponse.json({ error: '案件名とクライアント名は必須です' }, { status: 400 })
+    }
+
+    const scheduleData = parseProjectSchedules(schedules)
+    const planData = parseProjectPlans(plans)
+    if (status !== undefined && !isProjectStatus(status)) {
+      throw new ProjectInputError('ステータスが正しくありません')
+    }
 
     // クライアント作成 or 取得
     let finalClientId = clientId
@@ -61,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     const project = await prisma.project.create({
       data: {
-        name,
+        name: name.trim(),
         clientId: finalClientId,
         talentId: finalTalentId,
         directorId: directorId || null,
@@ -69,17 +83,15 @@ export async function POST(request: NextRequest) {
         productOverview,
         purpose,
         targetAudience,
-        appealPoints,
-        requiredAppeals,
         ngItems,
         requiredNotations,
         usedUrl,
-        streamDate: streamDate ? new Date(streamDate) : null,
-        postDate: postDate ? new Date(postDate) : null,
+        schedules: { create: scheduleData },
+        plans: { create: planData },
         notes,
         status: status || 'draft',
       },
-      include: { client: true, talent: true },
+      include: { client: true, talent: true, schedules: true, plans: true },
     })
 
     await logActivity({
@@ -92,6 +104,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project, { status: 201 })
   } catch (error) {
     console.error(error)
+    if (error instanceof ProjectInputError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
   }
 }

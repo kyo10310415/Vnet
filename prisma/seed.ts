@@ -4,7 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 
 const connectionString = process.env.DATABASE_URL!
 const adapter = new PrismaPg({ connectionString })
-const prisma = new PrismaClient({ adapter } as any)
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log('🌱 シードデータを投入します...')
@@ -62,13 +62,21 @@ async function main() {
         productOverview: '美容と健康をサポートするサプリメント。コラーゲン・ビタミンC・ヒアルロン酸を配合。',
         purpose: 'ブランド認知向上と新規購入者獲得',
         targetAudience: '20〜30代女性、美容・健康に関心が高い層',
-        appealPoints: '①天然成分100%使用 ②1日2粒で簡単継続 ③30日間返金保証付き',
-        requiredAppeals: '「天然成分100%」「30日間返金保証」は必ず伝えること',
         ngItems: '「痩せる」「治る」などの医薬的な効果・効能の断言\n他社製品との比較\n価格の誇大な表現',
         requiredNotations: '#PR #BeautySupplement #PR案件',
         usedUrl: 'https://example.com/beauty-supple?ref=vtuber',
-        streamDate: new Date('2025-07-15'),
-        postDate: new Date('2025-07-15'),
+        schedules: {
+          create: [
+            { type: 'stream', startDate: new Date('2025-07-15'), order: 0 },
+            { type: 'post', startDate: new Date('2025-07-15'), order: 0 },
+          ],
+        },
+        plans: {
+          create: [
+            { content: '天然成分を紹介しながら、普段の美容ルーティンを実演する', order: 0 },
+            { content: '視聴者から美容習慣に関する質問を募集して回答する', order: 1 },
+          ],
+        },
         status: 'active',
         notes: 'タレントへの商品サンプル送付済み',
       },
