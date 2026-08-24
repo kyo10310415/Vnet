@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { formatDate, formatDateTime, DOCUMENT_TYPE_LABELS, DOCUMENT_STATUS_LABELS } from '@/lib/constants'
+import { formatDate, formatDateTime, formatSchedules, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
 import { DocumentStatusBadge } from '@/components/ui/StatusBadge'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -30,6 +30,8 @@ export default async function ProjectDetailPage({
       client: true,
       talent: true,
       director: { select: { name: true } },
+      schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
+      plans: { orderBy: { order: 'asc' } },
       documents: { orderBy: [{ type: 'asc' }, { version: 'desc' }] },
       checklists: { include: { items: { orderBy: { order: 'asc' } } }, orderBy: { category: 'asc' } },
       metrics: true,
@@ -45,6 +47,8 @@ export default async function ProjectDetailPage({
   if (!project) notFound()
 
   const report = project.reports[0]
+  const streamSchedules = project.schedules.filter(schedule => schedule.type === 'stream')
+  const postSchedules = project.schedules.filter(schedule => schedule.type === 'post')
   const pendingDocs = project.documents.filter(d => d.status === 'pending_review')
   const rejectedDocs = project.documents.filter(d => d.status === 'rejected')
 
@@ -130,10 +134,10 @@ export default async function ProjectDetailPage({
             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {[
                 { label: '商材名', value: project.productName },
-                { label: '配信予定日', value: formatDate(project.streamDate) },
-                { label: '投稿予定日', value: formatDate(project.postDate) },
+                { label: '配信予定日', value: formatSchedules(streamSchedules) },
+                { label: '投稿予定日', value: formatSchedules(postSchedules) },
                 { label: '使用URL', value: project.usedUrl },
-              ].map(item => item.value && (
+              ].map(item => item.value && item.value !== '—' && (
                 <div key={item.label}>
                   <dt className="text-xs font-medium text-gray-500">{item.label}</dt>
                   <dd className="text-sm text-gray-900 mt-0.5">{item.value}</dd>
@@ -145,16 +149,28 @@ export default async function ProjectDetailPage({
                   <dd className="text-sm text-gray-900 mt-0.5 whitespace-pre-wrap">{project.purpose}</dd>
                 </div>
               )}
+              {project.plans.length > 0 && (
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-medium text-gray-500">企画内容</dt>
+                  <dd className="mt-1 space-y-2">
+                    {project.plans.map((plan, index) => (
+                      <div key={plan.id} className="rounded bg-indigo-50 p-3 text-sm text-indigo-950 whitespace-pre-wrap">
+                        <span className="mr-2 font-semibold">{index + 1}.</span>{plan.content}
+                      </div>
+                    ))}
+                  </dd>
+                </div>
+              )}
               {project.ngItems && (
                 <div className="sm:col-span-2">
                   <dt className="text-xs font-medium text-gray-500 text-red-500">⚠️ NG事項</dt>
                   <dd className="text-sm text-red-700 mt-0.5 whitespace-pre-wrap bg-red-50 p-2 rounded">{project.ngItems}</dd>
                 </div>
               )}
-              {project.requiredAppeals && (
+              {project.requiredNotations && (
                 <div className="sm:col-span-2">
-                  <dt className="text-xs font-medium text-gray-500 text-blue-600">必須訴求</dt>
-                  <dd className="text-sm text-blue-900 mt-0.5 whitespace-pre-wrap bg-blue-50 p-2 rounded">{project.requiredAppeals}</dd>
+                  <dt className="text-xs font-medium text-blue-600">必須表記</dt>
+                  <dd className="mt-0.5 whitespace-pre-wrap rounded bg-blue-50 p-2 text-sm text-blue-900">{project.requiredNotations}</dd>
                 </div>
               )}
             </dl>
@@ -185,7 +201,7 @@ export default async function ProjectDetailPage({
                       </p>
                       <p className="text-xs text-gray-500">v{doc.version} · {formatDateTime(doc.createdAt)}</p>
                     </div>
-                    <DocumentStatusBadge status={doc.status as any} />
+                    <DocumentStatusBadge status={doc.status} />
                   </div>
                 ))}
               </div>

@@ -7,7 +7,7 @@ const DEFAULT_CHECKLIST_ITEMS = {
   pre_stream: [
     'PR表記（#PR）が配信タイトル・概要欄に入っている',
     'NGワードリストを確認した',
-    '必須訴求事項を台本に入れている',
+    '企画内容を台本に反映している',
     '指定URLが概要欄に設置されている',
     'タレントへの案件説明が完了している',
     '配信台本を最終確認した',
@@ -16,7 +16,7 @@ const DEFAULT_CHECKLIST_ITEMS = {
   during_stream: [
     'PR開示のアナウンスが行われた',
     'NGワードを使用していない',
-    '必須訴求を配信内で伝えた',
+    '登録した企画内容に沿って進行した',
     '指定URLを視聴者に案内した',
   ],
   post_stream: [
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       orderBy: { category: 'asc' },
     })
     return NextResponse.json(checklists)
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch checklists' }, { status: 500 })
   }
 }

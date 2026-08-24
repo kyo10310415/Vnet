@@ -2,19 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateDocument } from '@/lib/ai/generate'
 import { logActivity } from '@/lib/activity'
+import { DocumentStatus, DocumentType } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const projectId = searchParams.get('projectId')
   const status = searchParams.get('status')
   const type = searchParams.get('type')
+  const documentStatus = Object.values(DocumentStatus).find(value => value === status)
+  const documentType = Object.values(DocumentType).find(value => value === type)
 
   try {
     const documents = await prisma.generatedDocument.findMany({
       where: {
         ...(projectId ? { projectId } : {}),
-        ...(status ? { status: status as any } : {}),
-        ...(type ? { type: type as any } : {}),
+        ...(documentStatus ? { status: documentStatus } : {}),
+        ...(documentType ? { type: documentType } : {}),
       },
       include: {
         project: { select: { id: true, name: true, client: true } },
@@ -31,11 +34,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { projectId, type, regenerate } = body
+    const { projectId, type } = body
+    const documentType = Object.values(DocumentType).find(value => value === type)
+
+    if (typeof projectId !== 'string' || !documentType) {
+      return NextResponse.json({ error: '案件または文書種別が正しくありません' }, { status: 400 })
+    }
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: { client: true, talent: true },
+      include: {
+        client: true,
+        talent: true,
+        plans: { orderBy: { order: 'asc' } },
+      },
     })
 
     if (!project) {
@@ -44,22 +56,21 @@ export async function POST(request: NextRequest) {
 
     // 既存の最新バージョンを確認
     const existing = await prisma.generatedDocument.findFirst({
-      where: { projectId, type },
+      where: { projectId, type: documentType },
       orderBy: { version: 'desc' },
     })
 
     const nextVersion = existing ? existing.version + 1 : 1
 
     // AI生成
-    const { content, generatorType } = await generateDocument(type, {
+    const { content, generatorType } = await generateDocument(documentType, {
       projectName: project.name,
       clientName: project.client.name,
       productName: project.productName ?? undefined,
       productOverview: project.productOverview ?? undefined,
       purpose: project.purpose ?? undefined,
       targetAudience: project.targetAudience ?? undefined,
-      appealPoints: project.appealPoints ?? undefined,
-      requiredAppeals: project.requiredAppeals ?? undefined,
+      plans: project.plans.map(plan => plan.content),
       ngItems: project.ngItems ?? undefined,
       requiredNotations: project.requiredNotations ?? undefined,
       usedUrl: project.usedUrl ?? undefined,
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
     const document = await prisma.generatedDocument.create({
       data: {
         projectId,
-        type,
+        type: documentType,
         content,
         generatorType,
         version: nextVersion,
@@ -81,8 +92,8 @@ export async function POST(request: NextRequest) {
     await logActivity({
       projectId,
       type: 'document_generated',
-      description: `AI下書き生成：${type}（バージョン${nextVersion}）`,
-      metadata: { documentId: document.id, documentType: type, version: nextVersion },
+      description: `AI下書き生成：${documentType}（バージョン${nextVersion}）`,
+      metadata: { documentId: document.id, documentType, version: nextVersion },
     })
 
     return NextResponse.json(document, { status: 201 })

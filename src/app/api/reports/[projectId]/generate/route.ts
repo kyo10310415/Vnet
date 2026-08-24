@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
+import { formatSchedules } from '@/lib/constants'
 
 export async function POST(
   _request: NextRequest,
@@ -14,6 +15,7 @@ export async function POST(
         client: true,
         talent: true,
         metrics: true,
+        schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
         documents: {
           where: { status: 'approved' },
           orderBy: { version: 'desc' },
@@ -49,12 +51,18 @@ export async function POST(
       metrics?.xPostUrl ? `X投稿: ${metrics.xPostUrl}` : null,
     ].filter(Boolean).join('\n') || '※URLは未入力です'
 
+    const streamSchedules = project.schedules.filter(schedule => schedule.type === 'stream')
+    const postSchedules = project.schedules.filter(schedule => schedule.type === 'post')
+    const streamDates = streamSchedules.length ? formatSchedules(streamSchedules) : '未設定'
+    const postDates = postSchedules.length ? formatSchedules(postSchedules) : '未設定'
+    const implementation = `${project.talent?.name || 'タレント'}によるライブ配信およびX投稿を実施しました。\n**配信日：** ${streamDates}\n**投稿日：** ${postDates}`
+
     // レポートを作成/更新（下書きとして）
     const report = await prisma.report.upsert({
       where: { projectId },
       update: {
         overview: `**案件名：** ${project.name}\n**クライアント：** ${project.client.name}\n**商材：** ${project.productName || '未設定'}\n**実施目的：** ${project.purpose || '未設定'}\n**ターゲット：** ${project.targetAudience || '未設定'}`,
-        implementation: `${project.talent?.name || 'タレント'}によるライブ配信およびX投稿を実施しました。\n**配信日：** ${project.streamDate ? new Date(project.streamDate).toLocaleDateString('ja-JP') : '未設定'}\n**投稿日：** ${project.postDate ? new Date(project.postDate).toLocaleDateString('ja-JP') : '未設定'}`,
+        implementation,
         urls,
         metricsSummary,
         achievements: metrics?.cv ? `CV数 ${metrics.cv}件を達成しました。` : '（承認後に記載）',
@@ -67,7 +75,7 @@ export async function POST(
       create: {
         projectId,
         overview: `**案件名：** ${project.name}\n**クライアント：** ${project.client.name}\n**商材：** ${project.productName || '未設定'}\n**実施目的：** ${project.purpose || '未設定'}\n**ターゲット：** ${project.targetAudience || '未設定'}`,
-        implementation: `${project.talent?.name || 'タレント'}によるライブ配信およびX投稿を実施しました。\n**配信日：** ${project.streamDate ? new Date(project.streamDate).toLocaleDateString('ja-JP') : '未設定'}\n**投稿日：** ${project.postDate ? new Date(project.postDate).toLocaleDateString('ja-JP') : '未設定'}`,
+        implementation,
         urls,
         metricsSummary,
         achievements: metrics?.cv ? `CV数 ${metrics.cv}件を達成しました。` : '（承認後に記載）',
