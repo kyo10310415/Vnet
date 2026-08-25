@@ -296,10 +296,20 @@ model ChecklistItem {
 // 数値
 // ============================
 
+enum MetricType {
+  stream   // 配信
+  x_post   // X投稿
+  combined // 配信＋X投稿（既存データ互換）
+}
+
 model Metric {
-  id        String  @id @default(cuid())
-  projectId String  @unique
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id         String     @id @default(cuid())
+  projectId  String
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type       MetricType @default(stream)
+  label      String?
+  recordedAt DateTime?
+  order      Int        @default(0)
 
   // YouTube
   youtubeUrl      String?
@@ -324,6 +334,8 @@ model Metric {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([projectId, order])
 }
 
 // ============================
