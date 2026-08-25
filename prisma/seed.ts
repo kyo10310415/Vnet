@@ -56,7 +56,10 @@ async function main() {
       data: {
         name: '【サンプル】美容サプリPR配信',
         clientId: client.id,
-        talentId: talent.id,
+        talentType: 'individual',
+        talents: {
+          create: [{ talentId: talent.id, order: 0 }],
+        },
         directorId: director.id,
         productName: 'ビューティーサプリ Premium',
         productOverview: '美容と健康をサポートするサプリメント。コラーゲン・ビタミンC・ヒアルロン酸を配合。',

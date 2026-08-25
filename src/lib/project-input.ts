@@ -1,7 +1,15 @@
+import { ProjectStatus } from '@prisma/client'
+
 export type ProjectScheduleInput = {
   type: 'stream' | 'post'
   startDate: string
   endDate?: string | null
+}
+
+export type ProjectTalentsInput = {
+  talentType: 'individual' | 'group'
+  talentGroupName: string | null
+  talentNames: string[]
 }
 
 export class ProjectInputError extends Error {}
@@ -77,4 +85,45 @@ export function parseProjectPlans(value: unknown) {
     .filter(Boolean)
     .map((content, order) => ({ content, order }))
 }
-import { ProjectStatus } from '@prisma/client'
+
+export function parseProjectTalents(
+  talentTypeValue: unknown,
+  talentGroupNameValue: unknown,
+  talentNamesValue: unknown,
+): ProjectTalentsInput {
+  if (talentTypeValue !== undefined && talentTypeValue !== null
+    && talentTypeValue !== 'individual' && talentTypeValue !== 'group') {
+    throw new ProjectInputError('案件単位が正しくありません')
+  }
+  const talentType = talentTypeValue === 'group' ? 'group' : 'individual'
+  const talentGroupName = typeof talentGroupNameValue === 'string'
+    ? talentGroupNameValue.trim()
+    : ''
+
+  const talentNameValues = talentNamesValue === undefined || talentNamesValue === null
+    ? []
+    : talentNamesValue
+  if (!Array.isArray(talentNameValues) || talentNameValues.length > 100) {
+    throw new ProjectInputError('タレント名の形式が正しくありません')
+  }
+
+  const seen = new Set<string>()
+  const talentNames = talentNameValues.flatMap(value => {
+    if (typeof value !== 'string') return []
+    const name = value.trim()
+    const normalizedName = name.toLocaleLowerCase('ja-JP')
+    if (!name || seen.has(normalizedName)) return []
+    seen.add(normalizedName)
+    return [name]
+  })
+
+  if (talentType === 'group' && !talentGroupName) {
+    throw new ProjectInputError('グループ名を入力してください')
+  }
+
+  return {
+    talentType,
+    talentGroupName: talentType === 'group' ? talentGroupName : null,
+    talentNames,
+  }
+}

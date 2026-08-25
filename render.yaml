@@ -19,6 +19,8 @@ services:
         generateValue: true
       - key: NEXTAUTH_URL
         sync: false   # デプロイ後に手動で設定
+      - key: OPENAI_API_KEY
+        sync: false   # 案件資料のAI解析に使用
       - key: NODE_ENV
         value: production
 

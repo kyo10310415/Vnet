@@ -14,7 +14,7 @@ export default async function EditProjectPage({
     where: { id },
     include: {
       client: true,
-      talent: true,
+      talents: { include: { talent: true }, orderBy: { order: 'asc' } },
       schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
       plans: { orderBy: { order: 'asc' } },
     },
