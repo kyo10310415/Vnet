@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateDocument } from '@/lib/ai/generate'
 import { logActivity } from '@/lib/activity'
+import { formatProjectTalentName } from '@/lib/project-talent'
 import { DocumentStatus, DocumentType } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       where: { id: projectId },
       include: {
         client: true,
-        talent: true,
+        talents: { include: { talent: true }, orderBy: { order: 'asc' } },
         plans: { orderBy: { order: 'asc' } },
       },
     })
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     const nextVersion = existing ? existing.version + 1 : 1
 
     // AI生成
+    const formattedTalentName = formatProjectTalentName(project)
     const { content, generatorType } = await generateDocument(documentType, {
       projectName: project.name,
       clientName: project.client.name,
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
       ngItems: project.ngItems ?? undefined,
       requiredNotations: project.requiredNotations ?? undefined,
       usedUrl: project.usedUrl ?? undefined,
-      talentName: project.talent?.name ?? undefined,
+      talentName: formattedTalentName === '—' ? undefined : formattedTalentName,
     })
 
     const document = await prisma.generatedDocument.create({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
 import { formatDate, formatSchedules } from '@/lib/constants'
+import { formatProjectTalentName } from '@/lib/project-talent'
 
 const METRIC_TYPE_LABELS = {
   stream: '配信',
@@ -19,7 +20,7 @@ export async function POST(
       where: { id: projectId },
       include: {
         client: true,
-        talent: true,
+        talents: { include: { talent: true }, orderBy: { order: 'asc' } },
         metrics: { orderBy: [{ order: 'asc' }, { createdAt: 'asc' }] },
         schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
         documents: {
@@ -70,7 +71,8 @@ export async function POST(
     const postSchedules = project.schedules.filter(schedule => schedule.type === 'post')
     const streamDates = streamSchedules.length ? formatSchedules(streamSchedules) : '未設定'
     const postDates = postSchedules.length ? formatSchedules(postSchedules) : '未設定'
-    const implementation = `${project.talent?.name || 'タレント'}によるライブ配信およびX投稿を実施しました。\n**配信日：** ${streamDates}\n**投稿日：** ${postDates}`
+    const talentName = formatProjectTalentName(project)
+    const implementation = `${talentName === '—' ? 'タレント' : talentName}によるライブ配信およびX投稿を実施しました。\n**配信日：** ${streamDates}\n**投稿日：** ${postDates}`
 
     // レポートを作成/更新（下書きとして）
     const report = await prisma.report.upsert({

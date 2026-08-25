@@ -9,7 +9,8 @@ AI生成物は絶対に自動確定せず、すべての重要な文書は人間
 
 | 機能 | 内容 |
 |------|------|
-| 案件管理 | 案件の作成・編集・一覧・詳細表示 |
+| 案件管理 | 案件の作成・編集・一覧・詳細表示、複数タレント・グループ案件対応 |
+| AI案件入力 | 文字起こしや添付資料から読み取れた案件情報をフォームへ自動反映 |
 | AI下書き生成 | 配信台本・NGリスト・タレント説明文など7種類をAI生成 |
 | 承認フロー | 承認・差し戻し・バージョン管理 |
 | チェックリスト | 配信前/中/後/レポート前のチェック管理 |
@@ -90,7 +91,8 @@ npm run dev
 | `DATABASE_URL` | PostgreSQL接続URL | `postgresql://user:pass@localhost:5432/vtuber_ops` |
 | `NEXTAUTH_SECRET` | NextAuth.js用シークレット | `openssl rand -base64 32` で生成 |
 | `NEXTAUTH_URL` | アプリのベースURL | `http://localhost:3001` |
-| `OPENAI_API_KEY` | OpenAI API（将来用） | `sk-...` |
+| `OPENAI_API_KEY` | 案件作成フォームの資料解析に使用するOpenAI APIキー | `sk-...` |
+| `OPENAI_PROJECT_ANALYSIS_MODEL` | 資料解析モデル（任意、既定値：`gpt-5-mini`） | `gpt-5-mini` |
 
 ---
 
@@ -207,6 +209,7 @@ Web Service作成画面の **Environment Variables** セクションに以下を
 | `DATABASE_URL` | STEP 1でコピーした **Internal Database URL** |
 | `NEXTAUTH_SECRET` | ランダム文字列（下記コマンドで生成） |
 | `NEXTAUTH_URL` | デプロイ後のURL（例：`https://vtuber-ops.onrender.com`）※後から更新可 |
+| `OPENAI_API_KEY` | OpenAI APIキー（案件資料のAI解析を使う場合は必須） |
 | `NODE_ENV` | `production` |
 
 `NEXTAUTH_SECRET` の生成方法（ローカルで実行）：
@@ -267,7 +270,7 @@ Render Shellから実行：
 
 | 機能 | 説明 |
 |------|------|
-| OpenAI API連携 | `lib/ai/generate.ts` のモックをGPT-4に差し替え |
+| AI文書生成のOpenAI API連携 | `lib/ai/generate.ts` のモックを実APIへ差し替え |
 | ログイン機能 | NextAuth.jsによる認証（Google・GitHub等） |
 | Google Drive連携 | レポートのGoogleドキュメント出力 |
 | Google Sheets連携 | 数値データの自動取り込み |

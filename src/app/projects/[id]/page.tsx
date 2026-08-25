@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { formatDate, formatDateTime, formatSchedules, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
 import { DocumentStatusBadge } from '@/components/ui/StatusBadge'
+import { formatProjectTalentName } from '@/lib/project-talent'
 
 const STATUS_LABEL: Record<string, string> = {
   draft: '下書き', active: '進行中', streaming: '配信中',
@@ -28,7 +29,7 @@ export default async function ProjectDetailPage({
     where: { id },
     include: {
       client: true,
-      talent: true,
+      talents: { include: { talent: true }, orderBy: { order: 'asc' } },
       director: { select: { name: true } },
       schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
       plans: { orderBy: { order: 'asc' } },
@@ -51,6 +52,7 @@ export default async function ProjectDetailPage({
   const postSchedules = project.schedules.filter(schedule => schedule.type === 'post')
   const pendingDocs = project.documents.filter(d => d.status === 'pending_review')
   const rejectedDocs = project.documents.filter(d => d.status === 'rejected')
+  const talentName = formatProjectTalentName(project)
 
   // 最新バージョンのみ表示（typeごとに）
   const latestDocsByType = Object.values(
@@ -76,7 +78,7 @@ export default async function ProjectDetailPage({
               {STATUS_LABEL[project.status]}
             </span>
             <span className="text-sm text-gray-500">{project.client.name}</span>
-            {project.talent && <span className="text-sm text-gray-500">/ {project.talent.name}</span>}
+            {talentName !== '—' && <span className="text-sm text-gray-500">/ {talentName}</span>}
           </div>
         </div>
         <Link

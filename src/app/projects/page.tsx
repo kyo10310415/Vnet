@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { formatSchedules } from '@/lib/constants'
 import { isProjectStatus } from '@/lib/project-input'
+import { formatProjectTalentName } from '@/lib/project-talent'
 
 const STATUS_LABEL: Record<string, string> = {
   draft: '下書き',
@@ -37,7 +38,7 @@ export default async function ProjectsPage({
     where: projectStatus ? { status: projectStatus } : {},
     include: {
       client: true,
-      talent: true,
+      talents: { include: { talent: true }, orderBy: { order: 'asc' } },
       director: { select: { name: true } },
       schedules: {
         where: { type: 'stream' },
@@ -111,7 +112,7 @@ export default async function ProjectsPage({
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{project.client.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{project.talent?.name || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{formatProjectTalentName(project)}</td>
                   <td className="px-4 py-3 text-gray-600">{formatSchedules(project.schedules)}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLOR[project.status]}`}>

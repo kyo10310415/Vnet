@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { formatDateTime } from '@/lib/constants'
+import { formatProjectTalentName } from '@/lib/project-talent'
 
 async function getDashboardData() {
   const [
@@ -29,7 +30,10 @@ async function getDashboardData() {
     prisma.project.findMany({
       take: 5,
       orderBy: { updatedAt: 'desc' },
-      include: { client: true, talent: true },
+      include: {
+        client: true,
+        talents: { include: { talent: true }, orderBy: { order: 'asc' } },
+      },
     }),
     prisma.activityLog.findMany({
       take: 10,
@@ -119,7 +123,7 @@ export default async function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-900">{project.name}</p>
-                        <p className="text-xs text-gray-500">{project.client.name} / {project.talent?.name || '—'}</p>
+                        <p className="text-xs text-gray-500">{project.client.name} / {formatProjectTalentName(project)}</p>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         project.status === 'active' ? 'bg-blue-100 text-blue-700' :
