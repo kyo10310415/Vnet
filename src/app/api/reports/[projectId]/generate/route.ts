@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
-import { formatSchedules } from '@/lib/constants'
+import { formatDate, formatSchedules } from '@/lib/constants'
+
+const METRIC_TYPE_LABELS = {
+  stream: '配信',
+  x_post: 'X投稿',
+  combined: '配信＋X投稿',
+}
 
 export async function POST(
   _request: NextRequest,
@@ -14,7 +20,7 @@ export async function POST(
       include: {
         client: true,
         talent: true,
-        metrics: true,
+        metrics: { orderBy: [{ order: 'asc' }, { createdAt: 'asc' }] },
         schedules: { orderBy: [{ type: 'asc' }, { order: 'asc' }] },
         documents: {
           where: { status: 'approved' },
@@ -25,31 +31,40 @@ export async function POST(
 
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const metrics = Array.isArray(project.metrics) ? project.metrics[0] : project.metrics
-
     // 数値サマリー生成
     let metricsSummary = '### 数値サマリー\n'
-    if (metrics) {
-      if (metrics.youtubeViews) metricsSummary += `- YouTube再生数：${metrics.youtubeViews.toLocaleString()}回\n`
-      if (metrics.peakConcurrent) metricsSummary += `- 最大同時接続数：${metrics.peakConcurrent.toLocaleString()}人\n`
-      if (metrics.avgViewDuration) metricsSummary += `- 平均視聴維持率：${metrics.avgViewDuration}%\n`
-      if (metrics.likes) metricsSummary += `- 高評価数：${metrics.likes.toLocaleString()}\n`
-      if (metrics.comments) metricsSummary += `- コメント数：${metrics.comments.toLocaleString()}\n`
-      if (metrics.xImpressions) metricsSummary += `- Xインプレッション：${metrics.xImpressions.toLocaleString()}\n`
-      if (metrics.xLikes) metricsSummary += `- Xいいね数：${metrics.xLikes.toLocaleString()}\n`
-      if (metrics.xReposts) metricsSummary += `- Xリポスト数：${metrics.xReposts.toLocaleString()}\n`
-      if (metrics.clicks) metricsSummary += `- クリック数：${metrics.clicks.toLocaleString()}\n`
-      if (metrics.cv) metricsSummary += `- CV数：${metrics.cv}\n`
-      if (metrics.cvr) metricsSummary += `- CVR：${metrics.cvr}%\n`
-      if (metrics.cpa) metricsSummary += `- CPA：¥${metrics.cpa.toLocaleString()}\n`
+    if (project.metrics.length > 0) {
+      project.metrics.forEach((metric, index) => {
+        const title = metric.label || `${METRIC_TYPE_LABELS[metric.type]} ${index + 1}`
+        metricsSummary += `\n#### ${title}\n`
+        if (metric.recordedAt) metricsSummary += `- 実施日：${formatDate(metric.recordedAt)}\n`
+        if (metric.youtubeViews !== null) metricsSummary += `- YouTube再生数：${metric.youtubeViews.toLocaleString()}回\n`
+        if (metric.peakConcurrent !== null) metricsSummary += `- 最大同時接続数：${metric.peakConcurrent.toLocaleString()}人\n`
+        if (metric.avgViewDuration !== null) metricsSummary += `- 平均視聴維持率：${metric.avgViewDuration}%\n`
+        if (metric.likes !== null) metricsSummary += `- 高評価数：${metric.likes.toLocaleString()}\n`
+        if (metric.comments !== null) metricsSummary += `- コメント数：${metric.comments.toLocaleString()}\n`
+        if (metric.xImpressions !== null) metricsSummary += `- Xインプレッション：${metric.xImpressions.toLocaleString()}\n`
+        if (metric.xLikes !== null) metricsSummary += `- Xいいね数：${metric.xLikes.toLocaleString()}\n`
+        if (metric.xReposts !== null) metricsSummary += `- Xリポスト数：${metric.xReposts.toLocaleString()}\n`
+        if (metric.clicks !== null) metricsSummary += `- クリック数：${metric.clicks.toLocaleString()}\n`
+        if (metric.cv !== null) metricsSummary += `- CV数：${metric.cv}\n`
+        if (metric.cvr !== null) metricsSummary += `- CVR：${metric.cvr}%\n`
+        if (metric.cpa !== null) metricsSummary += `- CPA：¥${metric.cpa.toLocaleString()}\n`
+        if (metric.notes) metricsSummary += `- 備考：${metric.notes}\n`
+      })
     } else {
       metricsSummary += '※数値は未入力です。数値入力画面から登録してください。\n'
     }
 
-    const urls = [
-      metrics?.youtubeUrl ? `YouTube: ${metrics.youtubeUrl}` : null,
-      metrics?.xPostUrl ? `X投稿: ${metrics.xPostUrl}` : null,
-    ].filter(Boolean).join('\n') || '※URLは未入力です'
+    const urls = project.metrics.flatMap((metric, index) => {
+      const title = metric.label || `${METRIC_TYPE_LABELS[metric.type]} ${index + 1}`
+      return [
+        metric.youtubeUrl ? `${title} YouTube: ${metric.youtubeUrl}` : null,
+        metric.xPostUrl ? `${title} X投稿: ${metric.xPostUrl}` : null,
+      ].filter((line): line is string => Boolean(line))
+    }).join('\n') || '※URLは未入力です'
+
+    const totalCv = project.metrics.reduce((total, metric) => total + (metric.cv || 0), 0)
 
     const streamSchedules = project.schedules.filter(schedule => schedule.type === 'stream')
     const postSchedules = project.schedules.filter(schedule => schedule.type === 'post')
@@ -65,7 +80,7 @@ export async function POST(
         implementation,
         urls,
         metricsSummary,
-        achievements: metrics?.cv ? `CV数 ${metrics.cv}件を達成しました。` : '（承認後に記載）',
+        achievements: totalCv > 0 ? `合計CV数 ${totalCv}件を達成しました。` : '（承認後に記載）',
         goodPoints: '（承認後に記載してください）',
         issues: '（承認後に記載してください）',
         improvements: '（承認後に記載してください）',
@@ -78,7 +93,7 @@ export async function POST(
         implementation,
         urls,
         metricsSummary,
-        achievements: metrics?.cv ? `CV数 ${metrics.cv}件を達成しました。` : '（承認後に記載）',
+        achievements: totalCv > 0 ? `合計CV数 ${totalCv}件を達成しました。` : '（承認後に記載）',
         goodPoints: '（承認後に記載してください）',
         issues: '（承認後に記載してください）',
         improvements: '（承認後に記載してください）',

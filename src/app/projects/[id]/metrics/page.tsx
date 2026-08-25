@@ -26,7 +26,7 @@ export default async function MetricsPage({
       </div>
       <div>
         <h1 className="text-2xl font-bold text-gray-900">📊 数値入力</h1>
-        <p className="text-sm text-gray-500 mt-1">{project.name}</p>
+        <p className="mt-1 text-sm text-gray-500">{project.name} — 配信・X投稿ごとに複数登録できます</p>
       </div>
       <MetricsClient projectId={project.id} />
     </div>
