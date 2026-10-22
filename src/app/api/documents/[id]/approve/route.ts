@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
@@ -6,14 +7,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requireApiAccess(request, 'review')
+  if (access instanceof Response) return access
+
   const { id } = await params
   try {
     const body = await request.json()
-    const { approverName, comment } = body
-
-    if (!approverName) {
-      return NextResponse.json({ error: '承認者名が必要です' }, { status: 400 })
-    }
+    const { comment } = body
 
     const doc = await prisma.generatedDocument.findUnique({ where: { id } })
     if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -22,13 +22,8 @@ export async function POST(
       return NextResponse.json({ error: '既に承認済みです' }, { status: 400 })
     }
 
-    // システムユーザーまたは名前でユーザーを取得/作成
-    let user = await prisma.user.findFirst({ where: { name: approverName } })
-    if (!user) {
-      user = await prisma.user.create({
-        data: { name: approverName, email: `${Date.now()}@temp.local`, role: 'reviewer' },
-      })
-    }
+    const user = access
+    const approverName = access.name
 
     const [updatedDoc] = await prisma.$transaction([
       prisma.generatedDocument.update({
@@ -55,7 +50,7 @@ export async function POST(
       userId: user.id,
       type: 'document_approved',
       description: `ドキュメント承認：${doc.type}（v${doc.version}）by ${approverName}`,
-      metadata: { documentId: id, approverName, version: doc.version },
+      metadata: { documentId: id, version: doc.version },
     })
 
     return NextResponse.json(updatedDoc)

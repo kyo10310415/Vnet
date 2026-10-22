@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DocumentStatusBadge } from '@/components/ui/StatusBadge'
@@ -36,7 +38,7 @@ export function DocumentsPageClient({ projectId, projectName }: DocumentPageClie
   }, [projectId])
 
   const loadDocuments = async () => {
-    const res = await fetch(`/api/documents?projectId=${projectId}`)
+    const res = await apiFetch(`/api/documents?projectId=${projectId}`)
     const data = await res.json()
     setDocuments(data)
   }
@@ -50,7 +52,7 @@ export function DocumentsPageClient({ projectId, projectName }: DocumentPageClie
   const handleGenerate = async (type: string) => {
     setGenerating(type)
     try {
-      const res = await fetch('/api/documents', {
+      const res = await apiFetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, type }),
@@ -79,7 +81,7 @@ export function DocumentsPageClient({ projectId, projectName }: DocumentPageClie
   const handleSaveEdit = async () => {
     if (!selectedDoc) return
     try {
-      const res = await fetch(`/api/documents/${selectedDoc.id}`, {
+      const res = await apiFetch(`/api/documents/${selectedDoc.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editContent }),
@@ -100,7 +102,7 @@ export function DocumentsPageClient({ projectId, projectName }: DocumentPageClie
     if (!selectedDoc) return
     setSubmittingReview(true)
     try {
-      await fetch(`/api/documents/${selectedDoc.id}`, {
+      await apiFetch(`/api/documents/${selectedDoc.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'pending_review' }),
@@ -113,29 +115,31 @@ export function DocumentsPageClient({ projectId, projectName }: DocumentPageClie
     }
   }
 
-  const handleApprove = async (approverName: string, comment: string) => {
+  const handleApprove = async (comment: string) => {
     if (!selectedDoc) return
-    await fetch(`/api/documents/${selectedDoc.id}/approve`, {
+    const res = await apiFetch(`/api/documents/${selectedDoc.id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approverName, comment }),
+      body: JSON.stringify({ comment }),
     })
+    const updated = await res.json()
+    if (!res.ok) throw new Error(updated.error || '承認できませんでした')
     await loadDocuments()
     setApprovalModal(false)
-    const updated = { ...selectedDoc, status: 'approved', approvedBy: approverName }
     setSelectedDoc(updated)
   }
 
-  const handleReject = async (rejectorName: string, reason: string, revisionRequest: string) => {
+  const handleReject = async (reason: string, revisionRequest: string) => {
     if (!selectedDoc) return
-    await fetch(`/api/documents/${selectedDoc.id}/reject`, {
+    const res = await apiFetch(`/api/documents/${selectedDoc.id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rejectorName, reason, revisionRequest }),
+      body: JSON.stringify({ reason, revisionRequest }),
     })
+    const updated = await res.json()
+    if (!res.ok) throw new Error(updated.error || '差し戻しできませんでした')
     await loadDocuments()
     setApprovalModal(false)
-    const updated = { ...selectedDoc, status: 'rejected', rejectedBy: rejectorName }
     setSelectedDoc(updated)
   }
 

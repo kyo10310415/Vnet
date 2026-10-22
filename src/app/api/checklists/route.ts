@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
@@ -37,6 +38,9 @@ const DEFAULT_CHECKLIST_ITEMS = {
 }
 
 export async function GET(request: NextRequest) {
+  const access = await requireApiAccess(request, 'read')
+  if (access instanceof Response) return access
+
   const searchParams = request.nextUrl.searchParams
   const projectId = searchParams.get('projectId')
 
@@ -55,6 +59,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   try {
     const body = await request.json()
     const { projectId, useDefaults } = body

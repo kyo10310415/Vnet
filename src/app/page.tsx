@@ -1,3 +1,4 @@
+import { requirePageUser } from '@/lib/access'
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
@@ -50,6 +51,8 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
+  await requirePageUser()
+
   const data = await getDashboardData()
 
   const stats = [

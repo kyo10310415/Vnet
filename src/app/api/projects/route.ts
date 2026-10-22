@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
@@ -11,6 +12,9 @@ import {
 import { resolveTalentIds } from '@/lib/project-talent.server'
 
 export async function GET(request: NextRequest) {
+  const access = await requireApiAccess(request, 'read')
+  if (access instanceof Response) return access
+
   const searchParams = request.nextUrl.searchParams
   const status = searchParams.get('status')
   const clientId = searchParams.get('clientId')
@@ -45,6 +49,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   try {
     const body = await request.json()
     const {
@@ -87,7 +94,7 @@ export async function POST(request: NextRequest) {
           clientId: finalClientId,
           talentType: talentData.talentType,
           talentGroupName: talentData.talentGroupName,
-          directorId: directorId || null,
+          directorId: access.role === 'director' ? access.id : directorId || null,
           productName,
           productOverview,
           purpose,

@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
@@ -6,24 +7,23 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requireApiAccess(request, 'review')
+  if (access instanceof Response) return access
+
   const { id } = await params
   try {
     const body = await request.json()
-    const { rejectorName, reason, revisionRequest } = body
+    const { reason, revisionRequest } = body
 
-    if (!rejectorName || !reason) {
-      return NextResponse.json({ error: '差し戻し者名と理由が必要です' }, { status: 400 })
+    if (!reason) {
+      return NextResponse.json({ error: '差し戻し理由が必要です' }, { status: 400 })
     }
 
     const doc = await prisma.generatedDocument.findUnique({ where: { id } })
     if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    let user = await prisma.user.findFirst({ where: { name: rejectorName } })
-    if (!user) {
-      user = await prisma.user.create({
-        data: { name: rejectorName, email: `${Date.now()}@temp.local`, role: 'reviewer' },
-      })
-    }
+    const user = access
+    const rejectorName = access.name
 
     const [updatedDoc] = await prisma.$transaction([
       prisma.generatedDocument.update({
@@ -52,7 +52,7 @@ export async function POST(
       userId: user.id,
       type: 'document_rejected',
       description: `ドキュメント差し戻し：${doc.type}（v${doc.version}）by ${rejectorName}`,
-      metadata: { documentId: id, rejectorName, reason, version: doc.version },
+      metadata: { documentId: id, reason, version: doc.version },
     })
 
     return NextResponse.json(updatedDoc)

@@ -1,7 +1,11 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
+  const access = await requireApiAccess(request, 'read')
+  if (access instanceof Response) return access
+
   const searchParams = request.nextUrl.searchParams
   const projectId = searchParams.get('projectId')
   const limit = parseInt(searchParams.get('limit') || '50')

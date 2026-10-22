@@ -1,12 +1,16 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
 import { MetricInputError, parseMetrics } from '@/lib/metric-input'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const access = await requireApiAccess(request, 'read')
+  if (access instanceof Response) return access
+
   const { projectId } = await params
   try {
     const metrics = await prisma.metric.findMany({
@@ -23,6 +27,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   const { projectId } = await params
   try {
     const body = await request.json()

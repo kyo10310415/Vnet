@@ -271,7 +271,7 @@ Render Shellから実行：
 | 機能 | 説明 |
 |------|------|
 | AI文書生成のOpenAI API連携 | `lib/ai/generate.ts` のモックを実APIへ差し替え |
-| ログイン機能 | NextAuth.jsによる認証（Google・GitHub等） |
+| 追加のログイン方式 | Google以外のIdP（必要な場合） |
 | Google Drive連携 | レポートのGoogleドキュメント出力 |
 | Google Sheets連携 | 数値データの自動取り込み |
 | YouTube Analytics API | 動画指標の自動収集 |
@@ -279,7 +279,7 @@ Render Shellから実行：
 | Discord通知 | 承認依頼・完了通知 |
 | PDFレポート出力 | クライアント提出用PDF生成 |
 | Google Docs出力 | レポートのGoogle Docs連携 |
-| 権限認証 | admin/director/reviewer/viewer ロール実装 |
+| 権限設定画面 | 利用者・ロールを管理する専用UI |
 
 ---
 
@@ -315,3 +315,34 @@ vtuber-ops/
 ├── render.yaml
 └── README.md
 ```
+
+
+## Googleログインとアクセス制御
+
+全業務APIと業務画面はログイン必須です。Googleで検証済みのメールアドレスが既存の`User.email`と一致する利用者だけログインできます。Googleログインによる利用者の自動作成・最初の利用者の管理者化・共通初期パスワードはありません。セッション発行後も各リクエストでDBの利用者と現ロールを確認し、削除・降格を即時反映します。
+
+運用開始前に管理者が以下を設定してください（この修正では外部設定・本番DB操作は行いません）。
+
+1. GoogleのWebアプリ用OAuth clientを用意し、コールバックURLを`https://<実ホスト>/api/auth/callback/google`に登録。ローカルは`http://localhost:3001/api/auth/callback/google`です。
+2. `AUTH_GOOGLE_ID`、`AUTH_GOOGLE_SECRET`、十分にランダムな`AUTH_SECRET`（既存の`NEXTAUTH_SECRET`も互換）と実際の公開originの`AUTH_URL`を秘密管理に設定。IdPのclient secretや署名鍵をソースへ書かないでください。設定欠落時はログインできず、匿名アクセスを許可するfallbackはありません。
+3. 既存の安全なDB管理経路で、実際にログインするメールを`User`へ事前登録しロールを割り当てます。最初の管理者もこの手順で用意します。既存のseedサンプルを実利用者の代用にしないでください。
+4. 既存メールに大文字小文字だけ違う重複がないことを確認。利用停止時は該当Userを削除または必要なロールへ変更します（無効化フラグは現schemaにありません）。
+
+| 操作 | admin | director | reviewer | viewer |
+|---|---|---|---|---|
+| 社内共有案件・顧客・利用者の閲覧 | 可 | 可 | 可 | 可 |
+| 案件作成・業務編集・AI生成・数値/チェック更新 | 可 | 担当案件のみ（新規は自分が担当） | 不可 | 不可 |
+| 文書/レポートの承認・差し戻し | 可 | 担当案件のみ | 可 | 不可 |
+| 利用者の追加・ロール付与 | 可 | 不可 | 不可 | 不可 |
+
+この権限表は既存schemaの4ロールを保守的に具体化したものです。案件の閲覧は社内共有を維持し、directorの変更は`Project.directorId`で制限します。既存の担当未設定案件はdirectorから変更できないため、運用開始前に管理者が適切な担当者を割り当ててください。権限のない操作はAPIが403、匿名APIは401を返します。画面の新規案件作成はadmin/directorに限ります。変更リクエストでは同一Originを検証するため、自動化クライアントも利用者認証と正しいOriginが必要です。
+
+承認者・差し戻し者・チェック担当者はログイン本人のDB ID/名前を記録し、本文の氏名指定やその名前によるUser自動作成は行いません。通常の文書/レポート編集APIから`approved`を設定して専用承認を迂回することも拒否します。
+
+### 隔離した検証
+
+`npm ci --ignore-scripts`、`npx prisma generate`、`npm test`、`npx tsc --noEmit`で確認できます。テストはダミーの認証利用者とDB mockを用い、外部OAuth/DBへ通信しません。匿名の全業務API、権限不足、CSRF、担当外、氏名偽装、承認状態の直接変更、Googleのverified email/登録済み条件、削除/降格後セッションを検証します。実際のGoogle OAuthログインと本番DBを用いる業務操作は、管理者設定後に別途確認が必要です。
+
+既存のレポート承認処理には、`Approval.documentId`の必須FKへreport IDを指定するschema不整合があり、実DBでの正規レポート承認成功はこの修正では保証しません。schema変更は今回行わず、更新と承認記録を同じtransactionへまとめ、FK等で失敗した場合は承認状態だけが残らないようにしています。文書承認の本人固定はmockを用いて検証します。
+
+ロールバックはこの修正のコード/環境変数変更を対象として管理し、DBの破壊的変更はありません。公開環境で旧匿名APIへ戻すことは避け、必要なら上流でアクセス制限してから切り戻してください。

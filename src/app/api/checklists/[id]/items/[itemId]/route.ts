@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
@@ -6,28 +7,22 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   const { id, itemId } = await params
   try {
     const body = await request.json()
-    const { status, note, checkedByName } = body
+    const { status, note } = body
 
-    let checkedById: string | undefined
-    if (checkedByName) {
-      let user = await prisma.user.findFirst({ where: { name: checkedByName } })
-      if (!user) {
-        user = await prisma.user.create({
-          data: { name: checkedByName, email: `${Date.now()}@temp.local`, role: 'director' },
-        })
-      }
-      checkedById = user.id
-    }
+    const checkedById = access.id
 
     const item = await prisma.checklistItem.update({
-      where: { id: itemId },
+      where: { id: itemId, checklistId: id },
       data: {
         status,
         note,
-        checkedById: checkedById || undefined,
+        checkedById,
         checkedAt: status === 'checked' ? new Date() : null,
       },
       include: { checklist: true },

@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -201,6 +202,9 @@ function sanitizeAnalysis(value: unknown): AnalysisResult {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     return NextResponse.json(

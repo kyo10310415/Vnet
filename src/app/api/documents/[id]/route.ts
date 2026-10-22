@@ -1,10 +1,14 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requireApiAccess(request, 'read')
+  if (access instanceof Response) return access
+
   const { id } = await params
   try {
     const doc = await prisma.generatedDocument.findUnique({
@@ -28,10 +32,16 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   const { id } = await params
   try {
     const body = await request.json()
     const { content, status } = body
+    if (status !== undefined && !['draft', 'pending_review'].includes(status)) {
+      return NextResponse.json({ error: '承認・差し戻しは専用の操作を使用してください' }, { status: 400 })
+    }
 
     // 承認済みドキュメントの直接編集を禁止
     const existing = await prisma.generatedDocument.findUnique({ where: { id } })

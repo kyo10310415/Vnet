@@ -5,8 +5,8 @@ import { useState } from 'react'
 interface ApprovalModalProps {
   isOpen: boolean
   onClose: () => void
-  onApprove: (approverName: string, comment: string) => Promise<void>
-  onReject: (rejectorName: string, reason: string, revisionRequest: string) => Promise<void>
+  onApprove: (comment: string) => Promise<void>
+  onReject: (reason: string, revisionRequest: string) => Promise<void>
   documentType: string
   documentVersion: number
 }
@@ -20,7 +20,6 @@ export function ApprovalModal({
   documentVersion,
 }: ApprovalModalProps) {
   const [mode, setMode] = useState<'approve' | 'reject'>('approve')
-  const [name, setName] = useState('')
   const [comment, setComment] = useState('')
   const [reason, setReason] = useState('')
   const [revisionRequest, setRevisionRequest] = useState('')
@@ -29,18 +28,17 @@ export function ApprovalModal({
   if (!isOpen) return null
 
   const handleSubmit = async () => {
-    if (!name) return alert('名前を入力してください')
     setLoading(true)
     try {
       if (mode === 'approve') {
-        await onApprove(name, comment)
+        await onApprove(comment)
       } else {
         if (!reason) return alert('差し戻し理由を入力してください')
-        await onReject(name, reason, revisionRequest)
+        await onReject(reason, revisionRequest)
       }
       onClose()
     } catch (err) {
-      alert('処理に失敗しました')
+      alert(err instanceof Error ? err.message : '処理に失敗しました')
     } finally {
       setLoading(false)
     }
@@ -80,19 +78,7 @@ export function ApprovalModal({
           </button>
         </div>
 
-        {/* 名前入力 */}
-        <div className="mb-3">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            あなたの名前 <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="例：田中 花子"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+        <p className="mb-3 text-sm text-gray-600">承認・差し戻しはログイン中の本人名義で記録されます。</p>
 
         {mode === 'approve' ? (
           <div className="mb-3">

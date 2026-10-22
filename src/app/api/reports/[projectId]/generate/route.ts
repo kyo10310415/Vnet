@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { logActivity } from '@/lib/activity'
@@ -11,9 +12,12 @@ const METRIC_TYPE_LABELS = {
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   const { projectId } = await params
   try {
     const project = await prisma.project.findUnique({

@@ -1,3 +1,4 @@
+import { requireApiAccess } from '@/lib/access'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateDocument } from '@/lib/ai/generate'
@@ -6,6 +7,9 @@ import { formatProjectTalentName } from '@/lib/project-talent'
 import { DocumentStatus, DocumentType } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
+  const access = await requireApiAccess(request, 'read')
+  if (access instanceof Response) return access
+
   const searchParams = request.nextUrl.searchParams
   const projectId = searchParams.get('projectId')
   const status = searchParams.get('status')
@@ -33,6 +37,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await requireApiAccess(request, 'edit')
+  if (access instanceof Response) return access
+
   try {
     const body = await request.json()
     const { projectId, type } = body

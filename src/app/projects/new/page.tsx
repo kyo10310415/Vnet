@@ -1,8 +1,11 @@
+import { requirePageUser } from '@/lib/access'
 export const dynamic = 'force-dynamic'
 
 import { ProjectForm } from '@/components/projects/ProjectForm'
 
-export default function NewProjectPage() {
+export default async function NewProjectPage() {
+  await requirePageUser('edit')
+
   return (
     <div className="space-y-6">
       <div>
