@@ -1,7 +1,8 @@
+import { requirePageUser } from '@/lib/access'
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ProjectForm } from '@/components/projects/ProjectForm'
 
 export default async function EditProjectPage({
@@ -9,6 +10,8 @@ export default async function EditProjectPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const user = await requirePageUser('edit')
+
   const { id } = await params
   const project = await prisma.project.findUnique({
     where: { id },
@@ -21,6 +24,7 @@ export default async function EditProjectPage({
   })
 
   if (!project) notFound()
+  if (user.role === 'director' && project.directorId !== user.id) redirect(`/projects/${id}`)
 
   return (
     <div className="space-y-6">

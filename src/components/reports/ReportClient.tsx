@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { ApprovalModal } from '@/components/ui/ApprovalModal'
 
@@ -30,7 +32,7 @@ export function ReportClient({ projectId }: ReportClientProps) {
   useEffect(() => { loadReport() }, [projectId])
 
   const loadReport = async () => {
-    const res = await fetch(`/api/reports/${projectId}`)
+    const res = await apiFetch(`/api/reports/${projectId}`)
     const data = await res.json()
     if (data) {
       setReport(data)
@@ -43,7 +45,7 @@ export function ReportClient({ projectId }: ReportClientProps) {
   const handleGenerate = async () => {
     setGenerating(true)
     try {
-      const res = await fetch(`/api/reports/${projectId}/generate`, { method: 'POST' })
+      const res = await apiFetch(`/api/reports/${projectId}/generate`, { method: 'POST' })
       const data = await res.json()
       setReport(data)
       const mapped: Record<string, string> = {}
@@ -59,7 +61,7 @@ export function ReportClient({ projectId }: ReportClientProps) {
   const handleSave = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/reports/${projectId}`, {
+      const res = await apiFetch(`/api/reports/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -81,7 +83,7 @@ export function ReportClient({ projectId }: ReportClientProps) {
   }
 
   const handleSubmitForReview = async () => {
-    await fetch(`/api/reports/${projectId}`, {
+    await apiFetch(`/api/reports/${projectId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, status: 'pending_review' }),
@@ -89,22 +91,30 @@ export function ReportClient({ projectId }: ReportClientProps) {
     await loadReport()
   }
 
-  const handleApprove = async (approverName: string, comment: string) => {
-    await fetch(`/api/reports/${projectId}/approve`, {
+  const handleApprove = async (comment: string) => {
+    const res = await apiFetch(`/api/reports/${projectId}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approverName, comment }),
+      body: JSON.stringify({ comment }),
     })
+    if (!res.ok) {
+      const result = await res.json()
+      throw new Error(result.error || '処理できませんでした')
+    }
     await loadReport()
     setApprovalModal(false)
   }
 
-  const handleReject = async (rejectorName: string, reason: string) => {
-    await fetch(`/api/reports/${projectId}/reject`, {
+  const handleReject = async (reason: string) => {
+    const res = await apiFetch(`/api/reports/${projectId}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rejectorName, reason }),
+      body: JSON.stringify({ reason }),
     })
+    if (!res.ok) {
+      const result = await res.json()
+      throw new Error(result.error || '処理できませんでした')
+    }
     await loadReport()
     setApprovalModal(false)
   }

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useEffect, useRef, useState } from 'react'
 
 interface MetricsClientProps {
@@ -140,7 +142,7 @@ export function MetricsClient({ projectId }: MetricsClientProps) {
     async function loadMetrics() {
       setInitialLoading(true)
       try {
-        const res = await fetch(`/api/metrics/${projectId}`)
+        const res = await apiFetch(`/api/metrics/${projectId}`)
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || '数値データの取得に失敗しました')
         if (ignore) return
@@ -209,7 +211,7 @@ export function MetricsClient({ projectId }: MetricsClientProps) {
           notes: metric.notes,
         }))
 
-      const res = await fetch(`/api/metrics/${projectId}`, {
+      const res = await apiFetch(`/api/metrics/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metrics: payload }),

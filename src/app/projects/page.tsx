@@ -1,3 +1,4 @@
+import { requirePageUser } from '@/lib/access'
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
@@ -31,6 +32,8 @@ export default async function ProjectsPage({
 }: {
   searchParams: Promise<{ status?: string }>
 }) {
+  await requirePageUser()
+
   const { status } = await searchParams
   const projectStatus = isProjectStatus(status) ? status : undefined
 

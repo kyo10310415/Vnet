@@ -11,7 +11,7 @@ const navItems = [
   { href: '/activities', label: 'アクティビティ', icon: '📜' },
 ]
 
-export function Sidebar() {
+export function Sidebar({ canCreate, children }: { canCreate: boolean; children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
@@ -30,7 +30,7 @@ export function Sidebar() {
       {/* ナビゲーション */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {navItems.map(item => {
+          {navItems.filter(item => item.href !== '/projects/new' || canCreate).map(item => {
             const isActive =
               item.href === '/'
                 ? pathname === '/'
@@ -82,6 +82,7 @@ export function Sidebar() {
 
       {/* フッター */}
       <div className="border-t border-gray-200 px-4 py-3">
+        {children}
         <p className="text-xs text-gray-400">⚠️ AI生成物は必ず承認が必要です</p>
       </div>
     </aside>

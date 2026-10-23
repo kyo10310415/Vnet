@@ -1,3 +1,4 @@
+import { requirePageUser } from '@/lib/access'
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
@@ -24,6 +25,8 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  await requirePageUser()
+
   const { id } = await params
   const project = await prisma.project.findUnique({
     where: { id },

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -256,7 +258,7 @@ export function ProjectForm({ initialData, isEdit = false }: ProjectFormProps) {
       const body = new FormData()
       body.append('transcript', transcript.trim())
       analysisFiles.forEach(file => body.append('files', file))
-      const response = await fetch('/api/projects/analyze', { method: 'POST', body })
+      const response = await apiFetch('/api/projects/analyze', { method: 'POST', body })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'AI解析に失敗しました')
 
@@ -370,7 +372,7 @@ export function ProjectForm({ initialData, isEdit = false }: ProjectFormProps) {
       setLoading(true)
       const url = isEdit ? `/api/projects/${initialData?.id}` : '/api/projects'
       const method = isEdit ? 'PUT' : 'POST'
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

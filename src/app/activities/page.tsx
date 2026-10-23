@@ -1,3 +1,4 @@
+import { requirePageUser } from '@/lib/access'
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
@@ -17,6 +18,8 @@ const ACTIVITY_ICONS: Record<string, string> = {
 }
 
 export default async function ActivitiesPage() {
+  await requirePageUser()
+
   const logs = await prisma.activityLog.findMany({
     orderBy: { createdAt: 'desc' },
     take: 100,

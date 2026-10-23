@@ -1,5 +1,7 @@
 'use client'
 
+import { apiFetch } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -16,14 +18,13 @@ interface ChecklistClientProps {
 export function ChecklistClient({ projectId }: ChecklistClientProps) {
   const [checklists, setChecklists] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [checkerName, setCheckerName] = useState('')
   const [creating, setCreating] = useState(false)
 
   useEffect(() => { loadChecklists() }, [projectId])
 
   const loadChecklists = async () => {
     setLoading(true)
-    const res = await fetch(`/api/checklists?projectId=${projectId}`)
+    const res = await apiFetch(`/api/checklists?projectId=${projectId}`)
     const data = await res.json()
     setChecklists(data)
     setLoading(false)
@@ -31,7 +32,7 @@ export function ChecklistClient({ projectId }: ChecklistClientProps) {
 
   const createDefaultChecklists = async () => {
     setCreating(true)
-    await fetch('/api/checklists', {
+    await apiFetch('/api/checklists', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId, useDefaults: true }),
@@ -46,19 +47,18 @@ export function ChecklistClient({ projectId }: ChecklistClientProps) {
     currentStatus: string
   ) => {
     const newStatus = currentStatus === 'checked' ? 'unchecked' : 'checked'
-    await fetch(`/api/checklists/${checklistId}/items/${itemId}`, {
+    await apiFetch(`/api/checklists/${checklistId}/items/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: newStatus,
-        checkedByName: checkerName || '担当者',
       }),
     })
     await loadChecklists()
   }
 
   const handleNeedsReview = async (checklistId: string, itemId: string) => {
-    await fetch(`/api/checklists/${checklistId}/items/${itemId}`, {
+    await apiFetch(`/api/checklists/${checklistId}/items/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'needs_review' }),
@@ -90,17 +90,7 @@ export function ChecklistClient({ projectId }: ChecklistClientProps) {
 
   return (
     <div className="space-y-6">
-      {/* 担当者名入力 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700 whitespace-nowrap">チェック担当者名：</label>
-        <input
-          type="text"
-          value={checkerName}
-          onChange={e => setCheckerName(e.target.value)}
-          placeholder="例：田中 花子"
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500 max-w-xs"
-        />
-      </div>
+      <p className="text-sm text-gray-600">チェック担当者はログイン中の本人として記録されます。</p>
 
       {/* 進捗サマリー */}
       <div className="rounded-xl border border-gray-200 bg-white p-4">
