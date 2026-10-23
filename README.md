@@ -346,3 +346,6 @@ vtuber-ops/
 既存のレポート承認処理には、`Approval.documentId`の必須FKへreport IDを指定するschema不整合があり、実DBでの正規レポート承認成功はこの修正では保証しません。schema変更は今回行わず、更新と承認記録を同じtransactionへまとめ、FK等で失敗した場合は承認状態だけが残らないようにしています。文書承認の本人固定はmockを用いて検証します。
 
 ロールバックはこの修正のコード/環境変数変更を対象として管理し、DBの破壊的変更はありません。公開環境で旧匿名APIへ戻すことは避け、必要なら上流でアクセス制限してから切り戻してください。
+
+### 依存セキュリティ更新（2026-10-23）
+Next16.4.2/NextAuth beta32、Prisma・client・adapter-pg7.10.1へ同majorで更新し、lockのCritical/High警告を解消しました。認証・Google登録条件・schema/migrationは変更していません。Node22.23.4でclean install(ignore-scripts)、Prisma generate（DB接続なし）、17テスト、型check、production build成功。ビルドのGoogleフォントは作業用固定mockで外部取得を避けています。本番OAuth/DBと実フォント取得は未試験です。残るModerateはcsv-parse6系。全体lintは未変更srcで12errors/16warnings（旧版baseline未計測、ルール更新影響未分離）、追加テストlintは成功しています。
