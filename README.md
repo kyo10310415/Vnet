@@ -349,3 +349,9 @@ vtuber-ops/
 
 ### 依存セキュリティ更新（2026-10-23）
 Next16.4.2/NextAuth beta32、Prisma・client・adapter-pg7.10.1へ同majorで更新し、lockのCritical/High警告を解消しました。認証・Google登録条件・schema/migrationは変更していません。Node22.23.4でclean install(ignore-scripts)、Prisma generate（DB接続なし）、17テスト、型check、production build成功。ビルドのGoogleフォントは作業用固定mockで外部取得を避けています。本番OAuth/DBと実フォント取得は未試験です。残るModerateはcsv-parse6系。全体lintは未変更srcで12errors/16warnings（旧版baseline未計測、ルール更新影響未分離）、追加テストlintは成功しています。
+
+## 未使用依存の整理と互換更新（2026-10-25）
+
+リポジトリ内にimport/requireがないcsv-parseを削除しました。CSV機能のメジャー移行やアプリの入力/権限変更は行いません。開発ツール内のbrace-expansion・browserslist・js-yaml・zodは既存の互換範囲でlockを更新しました。npm auditは全依存Critical0/High0/Moderate0/Low0です。
+
+Node22.23.4でclean install(ignore-scripts)、Prismaコード生成（DB接続なし）、17テスト、型検査、本番ビルドが成功しました。ローカルビルドのみ既存の固定フォントmockで外部フォント取得を避けています。実Google認証・DB操作は未試験です。全体lintは未変更ソースの12errors/16warningsが残り、以前の検査と同件数です。この更新で修正したとは扱いません。
